@@ -1,0 +1,144 @@
+syntax = "proto3";
+package app;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/talkiewalkie/talkiewalkie/pb";
+
+// utils
+
+service Utils {
+  rpc HealthCheck(Empty) returns (Empty) {}
+}
+
+message Empty {}
+
+message User {
+  string displayName = 1;
+  string uuid = 2;
+  repeated Conversation conversations = 3;
+  string phone = 4;
+}
+
+message MeUser {
+  User user = 1;
+  string languageUsed = 2;
+}
+
+message UserGetInput {
+  string uuid = 2;
+}
+
+message UserListInput {
+  int32 page = 1;
+}
+
+message OnboardingInput {
+  string displayName = 1;
+  repeated string locales = 2;
+}
+
+message SyncContactsInput {
+  repeated string phoneNumbers = 1;
+}
+
+message SyncContactsOutput {
+  repeated User users = 1;
+}
+
+service UserService {
+  rpc SyncContacts(SyncContactsInput) returns (SyncContactsOutput) {}
+  rpc Onboarding(OnboardingInput) returns (MeUser) {}
+  rpc Me(Empty)  returns (MeUser) {}
+  rpc Get(UserGetInput)  returns (User) {}
+}
+
+// -----------------------
+
+message Message {
+  string uuid = 1;
+  string convUuid = 2;
+  oneof content {
+    TextMessage textMessage = 3;
+    VoiceMessage voiceMessage = 4;
+  };
+  User author = 5;
+  google.protobuf.Timestamp createdAt = 6;
+}
+
+message TextMessage {
+  string content = 1;
+}
+
+message VoiceMessage {
+  bytes rawContent = 1;
+  AlignedTranscript siriTranscript = 2;
+}
+
+message AlignedTranscript {
+  repeated TranscriptItem items = 1;
+  string rendered = 2;
+}
+
+message TranscriptItem {
+  string word = 1;
+  float offsetMs = 2;
+  float durationMs = 3;
+  int32 substringOffset = 4;
+}
+
+message MessageSendInputRecipientUuids {
+  repeated string uuids = 1;
+  string title = 2;
+}
+
+message MessageSendInput {
+  oneof recipients {
+    string convUuid = 1;
+    MessageSendInputRecipientUuids recipientUuids = 2;
+  }
+  oneof content {
+    TextMessage textMessage = 3;
+    VoiceMessage voiceMessage = 4;
+  }
+}
+
+service MessageService {
+  rpc Send(MessageSendInput) returns (Message) {}
+  rpc Incoming(Empty) returns (stream Message) {}
+}
+
+// ----------------------
+
+message Conversation {
+  string uuid = 1;
+  string title = 2;
+  repeated Message messages = 3;
+  repeated UserConversation participants = 4;
+}
+
+message UserConversation {
+  User user = 1;
+  google.protobuf.Timestamp readUntil = 2;
+}
+
+message ConversationGetInput {
+  string uuid = 1;
+}
+
+message ConversationListInput {
+  int32 page = 1;
+}
+
+message ConversationListOutput {
+  repeated Conversation convs = 1;
+  bool hasMore = 2;
+  int32 nextPage = 3;
+}
+
+service ConversationService {
+  rpc Get(ConversationGetInput) returns (Conversation) {}
+  // TODO: Use ConversationService as output, delayed for demo
+  rpc List(ConversationListInput) returns (stream Conversation) {}
+}
+
